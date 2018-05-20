@@ -17,8 +17,9 @@ import sys,os
 download_path = u'C:/Users/gyfea/Desktop'
 fireFoxOptions = webdriver.FirefoxOptions()
 fireFoxOptions.set_headless()
-key_word_outer = re.compile(ur'^/zhengwugongkai/127924/128041/2951606/1923625/1923629/*')
-
+key_word_outer = re.compile(ur'^/zhengwugongkai/127924/128041/2951606/1923625/1923629/*') #匹配处罚链接
+key_word_page = re.compile(ur'^分*页$')  #匹配页数
+key_word_page1 = re.compile(ur'分13页')  #匹配页数
 def get_profile():
     profile = webdriver.FirefoxProfile()
     profile.set_preference('browser.download.dir',download_path)
@@ -50,25 +51,34 @@ def generate_branch_list():
         'Upgrade-Insecure-Requests': '1',
         "user-agent":"Mozilla / 5.0(Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101 Firefox/60.0"
     }
+
     rmyh=r'http://www.pbc.gov.cn'
     url=r'http://www.pbc.gov.cn/zhengwugongkai/127924/128041/2951606/1923625/1923629/index.html'#行政审批网页
     html=get_js_html(url)
-    print "hello world"
-    # r= requests.get(html,headers=headers)
     soup = BeautifulSoup(html,"lxml")
-    public_xml = soup.find_all('a',href=key_word_outer)#正则匹配许可超链接
-    cwd=os.getcwd()
-    print cwd
-    with open(cwd+r'/branch_list.txt','w+') as fout:
-
-        for link in public_xml[2:]:     #打印每一个链接
-            fout.write(link.get('href'))
-            fout.write('\n')
-        # print link.get('href')
 
 
-    # branch_table = soup[63]
-    # atags = branch_table.find_all('a')
+
+    #查找行政许可总页数，没找到id,只能通过tagname和属性来查找
+    total_page0=soup.find_all('td',attrs={"class":"Normal","valign":"bottom","nowrap":"true","align":"center"})
+    for i in total_page0:
+        total_page1=i.get_text().split()[1]  #获取的文字很多，用字符串分割后，取第二个。
+        total_page=filter(str.isdigit,total_page1.encode('gbk'))   #从数字和字符串里面，取数字，用到filter，并注意转码
+
+    print "总共有"+total_page+"页"
+    # public_xml = soup.find_all('a',href=key_word_outer)#正则匹配许可超链接
+
+    # source_address=r'D:/code/web_crawler/branch_list.txt'
+    # with open(source_address,'a') as fout:
+    #     for link in public_xml[2:]:     #将每一个链接，补全完整路径并写入TXT文档，
+    #         fout.write(rmyh+link.get('href'))
+    # #         fout.write('\n')
+    #
+    # next_page_tag = rmyh+soup.find('a', text='下一页').get('tagname')
+    # print next_page_tag
+    # # html=get_js_html(rmyh+next_page_tag)
+
+
 
 def get_js_html(url):
     profile = get_profile()
@@ -77,19 +87,22 @@ def get_js_html(url):
     return brower.page_source.encode('utf-8')
 
 def download_js(url,href_text,content_type = None):
-    brower.get(url)
-    button = brower.find_element_by_link_text(href_text)
-    prev_files_length = len(os.listdir(download_path))
-    button.click()
-    try_count = 0
-    while True:
-        time.sleep(try_sleep_interval)
-        after_files_length = len(os.listdir(download_path))
-        if after_files_length > prev_files_length:
-            break
-        try_count += 1
-        if try_count >= try_timeout_count:
-            break
+    data = pd.read_table(r'D:/code/web_crawler/branch_list.txt', header=None, encoding='gb2312', index_col=0)
+
+#循环使用
+    # brower.get(url)
+    # button = brower.find_element_by_link_text(href_text)
+    # prev_files_length = len(os.listdir(download_path))
+    # button.click()
+    # try_count = 0
+    # while True:
+    #     time.sleep(try_sleep_interval)
+    #     after_files_length = len(os.listdir(download_path))
+    #     if after_files_length > prev_files_length:
+    #         break
+    #     try_count += 1
+    #     if try_count >= try_timeout_count:
+    #         break
 
 if __name__ == '__main__':
     generate_branch_list()
