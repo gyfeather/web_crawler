@@ -8,10 +8,15 @@
 from selenium import webdriver
 import re
 import requests
+import pandas as pd
 from bs4 import BeautifulSoup
 import lxml
 from sqlalchemy.sql import func
 import sys,os
+import numpy as np
+from time import sleep, ctime
+
+
 #初始化存档路径，及浏览器设置（无头模式）
 
 download_path = u'C:/Users/gyfea/Desktop'
@@ -54,7 +59,7 @@ def generate_branch_list():
 
     rmyh=r'http://www.pbc.gov.cn'
     url=r'http://www.pbc.gov.cn/zhengwugongkai/127924/128041/2951606/1923625/1923629/index.html'#行政审批网页
-    html=get_js_html(url)
+    html = get_js_html(url)
     soup = BeautifulSoup(html,"lxml")
 
 
@@ -66,18 +71,30 @@ def generate_branch_list():
         total_page=filter(str.isdigit,total_page1.encode('gbk'))   #从数字和字符串里面，取数字，用到filter，并注意转码
 
     print "总共有"+total_page+"页"
-    # public_xml = soup.find_all('a',href=key_word_outer)#正则匹配许可超链接
 
-    # source_address=r'D:/code/web_crawler/branch_list.txt'
-    # with open(source_address,'a') as fout:
-    #     for link in public_xml[2:]:     #将每一个链接，补全完整路径并写入TXT文档，
-    #         fout.write(rmyh+link.get('href'))
-    # #         fout.write('\n')
-    #
-    # next_page_tag = rmyh+soup.find('a', text='下一页').get('tagname')
-    # print next_page_tag
-    # # html=get_js_html(rmyh+next_page_tag)
+    #取当前页链接并写入txt
+# def get_current_page():
+    public_xml = soup.find_all('a',href=key_word_outer)#正则匹配许可超链接
+    source_address=r'D:/code/web_crawler/branch_list.txt'
+    with open(source_address,'a') as fout:
+        for link in public_xml[2:]:     #将每一个链接，补全完整路径并写入TXT文档，
+            fout.write(rmyh+link.get('href'))
+            fout.write('\n')
 
+
+
+    #取下一页,并读入soup
+    for i in range(1,int(total_page),1):
+        next_page_tag = rmyh + soup.find('a', text='下一页').get('tagname')
+        print next_page_tag
+        html=  get_js_html(next_page_tag)
+        soup = BeautifulSoup(html, "lxml")
+        public_xml = soup.find_all('a',href=key_word_outer)#正则匹配许可超链接
+        source_address=r'D:/code/web_crawler/branch_list.txt'
+        with open(source_address,'a') as fout:
+            for link in public_xml[2:]:     #将每一个链接，补全完整路径并写入TXT文档，
+                fout.write(rmyh+link.get('href'))
+                fout.write('\n')
 
 
 def get_js_html(url):
@@ -86,23 +103,68 @@ def get_js_html(url):
     r= brower.get(url)
     return brower.page_source.encode('utf-8')
 
-def download_js(url,href_text,content_type = None):
-    data = pd.read_table(r'D:/code/web_crawler/branch_list.txt', header=None, encoding='gb2312', index_col=0)
+def download_branch_information():   #下载机构信息
+    #初始化表头信息
+    caption = ["许可证编号", "公司名称", "法定代表人（负责人）", "住所（营业场所）", "业务类型", "业务覆盖范围", "换证日期", "首次许可日期", "有效期至", "备注"]
+    caption1 = np.array(caption).reshape((1, 10))
+    start_caption = pd.DataFrame(caption1)
+    start_caption.to_csv("C:/Users/gyfea/Desktop/branch_information.csv", mode="a", encoding="utf_8_sig", index=0,
+                         header=0)
 
-#循环使用
-    # brower.get(url)
-    # button = brower.find_element_by_link_text(href_text)
-    # prev_files_length = len(os.listdir(download_path))
-    # button.click()
-    # try_count = 0
-    # while True:
-    #     time.sleep(try_sleep_interval)
-    #     after_files_length = len(os.listdir(download_path))
-    #     if after_files_length > prev_files_length:
-    #         break
-    #     try_count += 1
-    #     if try_count >= try_timeout_count:
-    #         break
+    #读取分支机构信息，先数组化再字符化，
+    data = pd.read_table(r'D:/code/web_crawler/branch_list.txt', header=None, encoding='gb2312')
+    link_all=np.array(data).tolist()
+    id1=0
+
+    #循环读入地址，并抓取信息
+    try:
+        while id1<len(link_all):
+            where = "".join(link_all[id1])  # 读取数组变字符串
+            print where
+            id1=id1+1
+
+        # for link in link_all:
+
+       #打开字符串化后的网页，爬取数据
+            html = get_js_html(where)
+            soup = BeautifulSoup(html, "lxml").select("table")[15].find("td").get_text() #解析网页后找到第15个表格的所有文字
+            list=soup.strip().replace(' ', '').split('\n')  #对文字进行处理，并按换行符分割成数组
+            list1 = filter(lambda listx: len(listx) > 2, list)[2:20:2]  # 对数组过滤去掉空元素，并切片取当前信息，舍弃历史变更信息
+            while len(list1) < 10:  # 不足十个要素，补足10个
+                list1.append("None")
+
+            #结果写入CSV
+            result11 = np.array(list1).reshape((1, 10))
+            final_result = pd.DataFrame(result11)
+            final_result.to_csv("C:/Users/gyfea/Desktop/branch_information.csv", mode="a", encoding="utf_8_sig", index=0,
+                                header=0)
+            sleep(2)
+    except:
+        print link_all[id1]+"出现异常，但继续执行！"
+        while id1 < len(link_all):
+            where = "".join(link_all[id1])  # 读取数组变字符串
+            print where
+            id1 = id1 + 1
+
+            # for link in link_all:
+
+            # 打开字符串化后的网页，爬取数据
+            html = get_js_html(where)
+            soup = BeautifulSoup(html, "lxml").select("table")[15].find("td").get_text()  # 解析网页后找到第15个表格的所有文字
+            list = soup.strip().replace(' ', '').split('\n')  # 对文字进行处理，并按换行符分割成数组
+            list1 = filter(lambda listx: len(listx) > 0.5, list)[2:20:2]  # 对数组过滤去掉空元素，并切片取当前信息，舍弃历史变更信息
+            while len(list1) < 10:  # 不足十个要素，补足10个
+                list1.append("___")
+
+            # 结果写入CSV
+            result11 = np.array(list1).reshape((1, 10))
+            final_result = pd.DataFrame(result11)
+            final_result.to_csv("C:/Users/gyfea/Desktop/branch_information.csv", mode="a", encoding="utf_8_sig",
+                                index=0,header=0)
+            sleep(2)
+    finally:
+            print "finished!"
 
 if __name__ == '__main__':
-    generate_branch_list()
+    # generate_branch_list()
+    download_branch_information()
