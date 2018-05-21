@@ -6,6 +6,7 @@
 #webdriver的CSS选择器可以很好的定位，但是遇到网页变化则易产生错误，因此此次爬虫选择正则匹配的方式
 
 from selenium import webdriver
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 import re
 import requests
 import pandas as pd
@@ -18,13 +19,16 @@ from time import sleep, ctime
 
 
 #初始化存档路径，及浏览器设置（无头模式）
-
-download_path = u'C:/Users/gyfea/Desktop'
 fireFoxOptions = webdriver.FirefoxOptions()
 fireFoxOptions.set_headless()
+binary=FirefoxBinary(r'C:\Program Files (x86)\Mozilla Firefox\firefox.exe')
+download_path = u'C:/Users/gyfea/Desktop'
+
 key_word_outer = re.compile(ur'^/zhengwugongkai/127924/128041/2951606/1923625/1923629/*') #匹配处罚链接
 key_word_page = re.compile(ur'^分*页$')  #匹配页数
 key_word_page1 = re.compile(ur'分13页')  #匹配页数
+key_word = re.compile(u'^机构详细信息')
+
 def get_profile():
     profile = webdriver.FirefoxProfile()
     profile.set_preference('browser.download.dir',download_path)
@@ -99,7 +103,7 @@ def generate_branch_list():
 
 def get_js_html(url):
     profile = get_profile()
-    brower = webdriver.Firefox(firefox_profile=profile, firefox_options=fireFoxOptions)
+    brower = webdriver.Firefox(firefox_profile=profile, firefox_options=fireFoxOptions,firefox_binary=binary)
     r= brower.get(url)
     return brower.page_source.encode('utf-8')
 
@@ -123,15 +127,26 @@ def download_branch_information():   #下载机构信息
             print where
             id1=id1+1
 
-        # for link in link_all:
 
-       #打开字符串化后的网页，爬取数据
+
+            #打开字符串化后的网页，爬取数据
             html = get_js_html(where)
-            soup = BeautifulSoup(html, "lxml").select("table")[15].find("td").get_text() #解析网页后找到第15个表格的所有文字
-            list=soup.strip().replace(' ', '').split('\n')  #对文字进行处理，并按换行符分割成数组
-            list1 = filter(lambda listx: len(listx) > 2, list)[2:20:2]  # 对数组过滤去掉空元素，并切片取当前信息，舍弃历史变更信息
-            while len(list1) < 10:  # 不足十个要素，补足10个
-                list1.append("None")
+            soup = BeautifulSoup(html, "lxml").find(text=key_word)  # 关键字并找父标签
+            # # soup = BeautifulSoup(html, "lxml").select("table")[15].find("td").get_text() #解析网页后找到第15个表格的所有文字
+            # list=soup.strip().replace(' ', '').split('\n')  #对文字进行处理，并按换行符分割成数组
+            soup1=soup.parent.parent.parent.parent.parent.get_text()# 解析网页后找到父标签的所有文字
+            list = soup1.strip().replace(' ', '').split('\n') # 对文字进行处理，并按换行符分割成数组
+            list1=[]
+            for i in range(4, len(list), 4):
+                list1.append(list[i])
+
+            #表格信息不规范，标准的10行，有的只有9行，甚至8行，都需要补足
+            if len(list1)==9:
+                list1.append("——")
+            if len(list1)==8:
+                list1.insert(7,"——") #没有换证日期，加上——
+                list1.append("——")  #没有备注，加上——
+
 
             #结果写入CSV
             result11 = np.array(list1).reshape((1, 10))
@@ -139,29 +154,38 @@ def download_branch_information():   #下载机构信息
             final_result.to_csv("C:/Users/gyfea/Desktop/branch_information.csv", mode="a", encoding="utf_8_sig", index=0,
                                 header=0)
             sleep(2)
+            soup=None
+    #出现异常后，休息两秒重新加载执行
     except:
-        print link_all[id1]+"出现异常，但继续执行！"
-        while id1 < len(link_all):
-            where = "".join(link_all[id1])  # 读取数组变字符串
-            print where
-            id1 = id1 + 1
+        print "出现异常，此机构未成功！"
+        sleep(2)
 
-            # for link in link_all:
-
-            # 打开字符串化后的网页，爬取数据
-            html = get_js_html(where)
-            soup = BeautifulSoup(html, "lxml").select("table")[15].find("td").get_text()  # 解析网页后找到第15个表格的所有文字
-            list = soup.strip().replace(' ', '').split('\n')  # 对文字进行处理，并按换行符分割成数组
-            list1 = filter(lambda listx: len(listx) > 0.5, list)[2:20:2]  # 对数组过滤去掉空元素，并切片取当前信息，舍弃历史变更信息
-            while len(list1) < 10:  # 不足十个要素，补足10个
-                list1.append("___")
-
-            # 结果写入CSV
-            result11 = np.array(list1).reshape((1, 10))
-            final_result = pd.DataFrame(result11)
-            final_result.to_csv("C:/Users/gyfea/Desktop/branch_information.csv", mode="a", encoding="utf_8_sig",
-                                index=0,header=0)
-            sleep(2)
+        # while id1 < len(link_all):
+        #     where = "".join(link_all[id1])  # 读取数组变字符串
+        #     print where
+        #     # 打开字符串化后的网页，寻找关键字
+        #     html = get_js_html(where)
+        #     soup = BeautifulSoup(html, "lxml").find_all(text=key_word)
+        #
+        #     # 解析网页后找到父标签的所有文字，并按4的步长把值赋到list1数组。
+        #     for label_1 in soup:
+        #         soup1 = label_1.parent.parent.parent.parent.parent.get_text()
+        #         list = soup1.strip().replace(' ', '').split('\n')  # 对文字进行处理，并按换行符分割成数组
+        #         list1 = []
+        #
+        #     for i in range(4, len(list), 4):
+        #         list1.append(list[i])
+        #
+        #     if len(list1) < 10:
+        #         lsit1.insert(9, "--")
+        #
+        #     # 一列数组转置成一行数据，并将结果写入CSV
+        #     result11 = np.array(list1).reshape((1, 10))
+        #     final_result = pd.DataFrame(result11)
+        #     final_result.to_csv("C:/Users/gyfea/Desktop/branch_information.csv", mode="a", encoding="utf_8_sig",
+        #                         index=0,  header=0)
+        #
+        #     sleep(2)
     finally:
             print "finished!"
 
