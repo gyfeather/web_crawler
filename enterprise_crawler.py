@@ -12,18 +12,25 @@ import sys,os
 import xlwt
 import pandas as pd
 import numpy as np
+
+from proxy import get_proxy_ip_port
+
+from selenium.webdriver.common.proxy import Proxy
+from selenium.webdriver.common.proxy import ProxyType
+
+
 def start_excel():
     #初始化列名
     caption = ["公司名称", "注册资本", "实缴资本", "经营状态", "成立日期", "统一社会信用代码", "纳税人识别号", "注册号", "组织机构代码", "公司类型", "所属行业", "核准日期",
                "登记机关", "所属地区", "英文名", "曾用名", "经营方式", "人员规模", "营业期限", "企业地址", "经营范围"]
     caption1=np.array(caption).reshape((1,21))
     start_caption = pd.DataFrame(caption1)
-    start_caption.to_csv("D:/code/13548777325.csv", mode="a",encoding="utf_8_sig",index=0,header=0)
+    start_caption.to_csv("C:/Users/gyfea/Desktop/enterprise_information.csv", mode="a",encoding="utf_8_sig",index=0,header=0)
     #header=0不保留列名,index=0不需要行索引
     #读取搜索的企业名称
     global enterprise_names
-    enterprise_name1= pd.read_csv("C:\Users\gyfea\Desktop/test1.csv",header=0) #获取第一列数据
-    print type(enterprise_name1)
+    enterprise_name1= pd.read_csv("C:/Users/gyfea/Desktop/enterprise_list.csv",header=0) #获取第一列数据
+    # print type(enterprise_name1)
     enterprise_names= np.array(enterprise_name1).tolist()  #变成序列，再变成数组tolist
 
     # print type(enterprise_names)
@@ -40,9 +47,17 @@ def open_web():
     #     sys.setdefaultencoding('utf-8')
     try:
         #主页填上搜索对象,并提交
-
+        b=0   #计数用
         for enterprise_name in enterprise_names:
-            driver = webdriver.Firefox()
+
+            proxy = Proxy(
+                {
+                    # 'proxyType': ProxyType.MANUAL,  # 用不用都行
+                    'httpProxy': get_proxy_ip_port()
+                }
+            )
+            print "现在使用的代理IP地址是："+ get_proxy_ip_port()
+            driver = webdriver.Firefox(proxy=proxy)
             driver.get("http://www.qichacha.com/")
 
             # 隐藏等待最多5秒
@@ -65,8 +80,8 @@ def open_web():
                 #因为打开新窗口，因此需要获取并切换窗口句柄
                 sleep(2)
                 handles = driver.window_handles
-                print(len(handles))
-                print(handles)
+                # print(len(handles))
+                # print(handles)
                 driver.switch_to_window(handles[-1])
 
 
@@ -93,24 +108,29 @@ def open_web():
                 if len(result1)==21:
                     result11=np.array(result1).reshape((1,21))
                     final_result=pd.DataFrame(result11)
-                    final_result.to_csv("D:/code/13548777325.csv",mode="a",encoding="utf_8_sig",index=0,header=0)
+                    final_result.to_csv("C:/Users/gyfea/Desktop/enterprise_information.csv",mode="a",encoding="utf_8_sig",index=0,header=0)
+
             except:
                 result1.append(qq1)
                 result11 = np.array(result1)
                 final_result = pd.DataFrame(result11)
-                final_result.to_csv("D:/code/13548777325.csv", mode="a", encoding="utf_8_sig", index=0, header=0)
+                final_result.to_csv("C:/Users/gyfea/Desktop/enterprise_information.csv", mode="a", encoding="utf_8_sig", index=0, header=0)
 
             driver.quit()
-
-
+            b=b+1   #计数
+            print "已经爬取了:"+str(b)+"家企业"
     #报错信息
     except NoSuchElementException as msg:
         print msg
     finally:
         print ctime()
 if __name__ == '__main__':
-
+    b= "Boss!企业信息正在下载，请稍等！"
+    print b.decode("utf-8")
+    import ctypes
     start_excel()
     open_web()
+    print sys.getdefaultencoding()
+    ctypes.windll.user32.MessageBoxA(0,u"恭喜老板！你要的企业工商信息已经批量下载完毕!".encode('gb2312'),u' 信息'.encode('gb2312'),0)
 
 
