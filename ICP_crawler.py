@@ -51,44 +51,48 @@ def get_profile():
                            image/tiff,image/jpeg")
     return profile
 
-driver = webdriver.Firefox()
-driver.get(r"http://www.beianbeian.com/")
-# html=get_js_html(r"http://www.beianbeian.com/")
-# soup = BeautifulSoup(html,"lxml")
+global enterprise_names
+enterprise_name1= pd.read_csv("C:/Users/gyfea/Desktop/enterprise_list.csv",header=0) #获取第一列数据
+enterprise_names= np.array(enterprise_name1).tolist()  #变成序列，再变成数组tolist
 
-# Select(self.driver.find_element_by_id("select")).
-driver.find_element_by_css_selector('.info3 > select:nth-child(1)').find_elements_by_tag_name("option")[2].click()
-# driver.find_element_by_tag_name("option")[2]
+def icp_get():
+    for enterprise_name in enterprise_names:
 
-# s1.select
-driver.find_element_by_css_selector(".input").send_keys(u"九派天下支付有限公司")
-sleep(2)
-driver.find_element_by_css_selector(".but").click()
-driver.find_element_by_xpath("/html/body/div/table[1]/tbody/tr[2]/td[4]/a[1]").click()
-# s2=driver.find_element_by_xpath("/html/body/div/div[6]/a").text
-# s1="超链目标指向".decode("utf-8","ignore")
-sleep(5)
-handles=driver.window_handles
-print handles
-driver.switch_to_window(handles[1])
+        driver = webdriver.Firefox()
+        driver.get(r"http://www.beianbeian.com/")
+        driver.implicitly_wait(5)
 
-url = driver.find_element_by_css_selector(".wrap > div:nth-child(9) > a:nth-child(2)").get_attribute("href")
-html = get_js_html(url)
-soup_main = BeautifulSoup(html, "lxml").find(text=key_word1)#查找ICP主体备案信息
-soup_net= BeautifulSoup(html, "lxml").find(text=key_word2)#查找ICP网站备案信息
-soup1 = soup_main.parent.parent.parent.get_text()
-soup2 = soup_net.parent.parent.parent.get_text()
-#
-list1 = soup1.strip().replace('\n\n','').split('\n')[2:9:2]# 对文字进行处理，并按两个换行符的表格替代为空换行符分割成数组
-# print len(list1)
-list2 = soup2.strip().replace("\n\n\n","").replace('\n\n','').split('\n')[3:8:2]# 对文字进行处理，并按两个换行符的表格替代为空换行符分割成数组
-# list2 = listx
-list3 = list1+list2
-print len(list3)
-print "hello world"
-# list3=list1+list2
-result11 = np.array(list3).reshape((1,7))
-final_result = pd.DataFrame(result11)
-final_result.to_csv("C:/Users/gyfea/Desktop/ICP_information.csv", mode="a", encoding="utf_8_sig", index=0, header=0)
+        key_word = enterprise_name[0].decode('cp936')
+        driver.find_element_by_css_selector('.info3 > select:nth-child(1)').find_elements_by_tag_name("option")[2].click()
+        driver.find_element_by_css_selector(".input").send_keys(u"%s"%key_word)
+        driver.find_element_by_css_selector(".but").click()
+        try:
+            driver.find_element_by_xpath("/html/body/div/table[1]/tbody/tr[2]/td[4]/a[1]").click()
+            sleep(2)
+            handles=driver.window_handles
+            print handles
+            driver.switch_to_window(handles[1])
 
-# if __name__ == '__main__':
+            url = driver.find_element_by_css_selector(".wrap > div:nth-child(9) > a:nth-child(2)").get_attribute("href")
+            html = get_js_html(url)
+            soup_main = BeautifulSoup(html, "lxml").find(text=key_word1)#查找ICP主体备案信息
+            soup_net= BeautifulSoup(html, "lxml").find(text=key_word2)#查找ICP网站备案信息
+            soup1 = soup_main.parent.parent.parent.get_text()
+            soup2 = soup_net.parent.parent.parent.get_text()
+            #
+            list1 = soup1.strip().replace('\n\n','').split('\n')[2:9:2]# 对文字进行处理，并按两个换行符的表格替代为空换行符分割成数组
+            # print len(list1)
+            list2 = soup2.strip().replace("\n\n\n","").replace('\n\n','').split('\n')[3:8:2]# 对文字进行处理，并按两个换行符的表格替代为空换行符分割成数组
+
+            list3 = list1+list2
+            print len(list3)
+            print "hello world"
+
+            result11 = np.array(list3).reshape((1,7))
+            final_result = pd.DataFrame(result11)
+            final_result.to_csv("C:/Users/gyfea/Desktop/ICP_information.csv", mode="a", encoding="utf_8_sig", index=0, header=0)
+        except:
+            driver.quit()
+            icp_get()
+if __name__ == '__main__':
+    icp_get()
