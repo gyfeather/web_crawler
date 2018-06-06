@@ -136,16 +136,18 @@ def download_branch_information():   #下载机构信息
             # list=soup.strip().replace(' ', '').split('\n')  #对文字进行处理，并按换行符分割成数组
             soup1=soup.parent.parent.parent.parent.parent.get_text()# 解析网页后找到父标签的所有文字
             list = soup1.strip().replace(' ', '').split('\n') # 对文字进行处理，并按换行符分割成数组
-            list1=[]
-            for i in range(4, len(list), 4):
-                list1.append(list[i])
+            list1=list[4::4]
+            # for i in range(4, len(list), 4):
+            #     list1.append(list[i])
 
             #表格信息不规范，标准的10行，有的只有9行，甚至8行，都需要补足
+
+            print len(list1)
             if len(list1)==9:
-                list1.append("——")
+                list1.append("None")
             if len(list1)==8:
-                list1.insert(7,"——") #没有换证日期，加上——
-                list1.append("——")  #没有备注，加上——
+                list1.insert(6,"None") #没有换证日期，加上字符串
+                list1.append("None")  #没有备注，加上字符串
 
 
             #结果写入CSV
@@ -153,6 +155,7 @@ def download_branch_information():   #下载机构信息
             final_result = pd.DataFrame(result11)
             final_result.to_csv("C:/Users/gyfea/Desktop/branch_information.csv", mode="a", encoding="utf_8_sig", index=0,
                                 header=0)
+            print list1[0]
             sleep(2)
             soup=None
     #出现异常后，休息两秒重新加载执行
@@ -160,32 +163,6 @@ def download_branch_information():   #下载机构信息
         print "出现异常，此机构未成功！"
         sleep(2)
 
-        # while id1 < len(link_all):
-        #     where = "".join(link_all[id1])  # 读取数组变字符串
-        #     print where
-        #     # 打开字符串化后的网页，寻找关键字
-        #     html = get_js_html(where)
-        #     soup = BeautifulSoup(html, "lxml").find_all(text=key_word)
-        #
-        #     # 解析网页后找到父标签的所有文字，并按4的步长把值赋到list1数组。
-        #     for label_1 in soup:
-        #         soup1 = label_1.parent.parent.parent.parent.parent.get_text()
-        #         list = soup1.strip().replace(' ', '').split('\n')  # 对文字进行处理，并按换行符分割成数组
-        #         list1 = []
-        #
-        #     for i in range(4, len(list), 4):
-        #         list1.append(list[i])
-        #
-        #     if len(list1) < 10:
-        #         lsit1.insert(9, "--")
-        #
-        #     # 一列数组转置成一行数据，并将结果写入CSV
-        #     result11 = np.array(list1).reshape((1, 10))
-        #     final_result = pd.DataFrame(result11)
-        #     final_result.to_csv("C:/Users/gyfea/Desktop/branch_information.csv", mode="a", encoding="utf_8_sig",
-        #                         index=0,  header=0)
-        #
-        #     sleep(2)
     finally:
             print "finished!"
 
